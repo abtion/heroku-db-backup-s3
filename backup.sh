@@ -67,8 +67,19 @@ else
   exit 1;
 fi;
 
-printf "${Green}Move dump to AWS${EC}\n"
-AWS_ACCESS_KEY_ID=$DB_BACKUP_AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY=$DB_BACKUP_AWS_SECRET_ACCESS_KEY /app/vendor/bin/aws --region $DB_BACKUP_AWS_DEFAULT_REGION s3 cp --no-progress "$TMP_BACKUP" s3://$DB_BACKUP_S3_BUCKET_PATH/
+# optional custom endpoint for S3-compatible providers (e.g. Scaleway)
+AWS_ENDPOINT_ARGS=()
+if [[ -n "$DB_BACKUP_S3_ENDPOINT_URL" ]]; then
+  AWS_ENDPOINT_ARGS=(--endpoint-url "$DB_BACKUP_S3_ENDPOINT_URL")
+fi
+
+printf "${Green}Move dump to S3${EC}\n"
+# only send checksums when required, S3-compatible providers may reject the AWS CLI defaults
+AWS_ACCESS_KEY_ID=$DB_BACKUP_AWS_ACCESS_KEY_ID \
+AWS_SECRET_ACCESS_KEY=$DB_BACKUP_AWS_SECRET_ACCESS_KEY \
+AWS_REQUEST_CHECKSUM_CALCULATION=when_required \
+AWS_RESPONSE_CHECKSUM_VALIDATION=when_required \
+  /app/vendor/bin/aws --region $DB_BACKUP_AWS_DEFAULT_REGION "${AWS_ENDPOINT_ARGS[@]}" s3 cp --no-progress "$TMP_BACKUP" s3://$DB_BACKUP_S3_BUCKET_PATH/
 
 # cleaning after all
 rm -rf "$TMP_BACKUP"
